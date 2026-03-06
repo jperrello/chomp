@@ -43,28 +43,28 @@ This clones into the current working directory (wherever Claude Code is running)
 
 Run the chomp shell script to produce the markdown file:
 ```bash
-bash ~/.claude/skills/chomp/scripts/chomp <git-url>
+bash ~/.claude/skills/chomp-init/scripts/chomp <git-url>
 ```
 This creates a file at `chomp/<repo-name>.md`.
 
 ### 4. Load context into the RLM REPL
 
 ```bash
-python3 ~/.claude/skills/chomp/scripts/rlm_repl.py init chomp/<repo-name>.md
-python3 ~/.claude/skills/chomp/scripts/rlm_repl.py status
+python3 ~/.claude/skills/chomp-init/scripts/rlm_repl.py init chomp/<repo-name>.md
+python3 ~/.claude/skills/chomp-init/scripts/rlm_repl.py status
 ```
 
 ### 5. Scout the context
 
 ```bash
-python3 ~/.claude/skills/chomp/scripts/rlm_repl.py exec -c "print(peek(0, 3000))"
-python3 ~/.claude/skills/chomp/scripts/rlm_repl.py exec -c "print(peek(len(content)-3000, len(content)))"
+python3 ~/.claude/skills/chomp-init/scripts/rlm_repl.py exec -c "print(peek(0, 3000))"
+python3 ~/.claude/skills/chomp-init/scripts/rlm_repl.py exec -c "print(peek(len(content)-3000, len(content)))"
 ```
 
 ### 6. Chunk the context
 
 ```bash
-python3 ~/.claude/skills/chomp/scripts/rlm_repl.py exec <<'PY'
+python3 ~/.claude/skills/chomp-init/scripts/rlm_repl.py exec <<'PY'
 paths = write_chunks('chomp/.rlm_state/chunks', size=200000, overlap=0)
 print(len(paths))
 print(paths[:5])

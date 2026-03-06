@@ -4,27 +4,17 @@ Analyze any GitHub repo from inside Claude Code. Dumps source into a single file
 
 ## What it does
 
-- `/chomp <git-url>` — clones a repo, dumps all source into `chomp/<repo>.md`, generates neutral "bits" (summaries of APIs, patterns, dependencies), then lets you ask questions answered via chunk-by-chunk subagent analysis
+- `/chomp <git-url> clone` — clones a repo, dumps all source into `chomp/<repo>.md`, generates neutral "bits" (summaries of APIs, patterns, dependencies), then lets you ask questions answered via chunk-by-chunk subagent analysis
 - `/bite <chomp1,chomp2,...> <intent>` — cross-repo research: reads bits from multiple chomped repos, formulates targeted queries, runs them against all chunks, writes narrative research docs
-- `/chomp-init` — sets up the current project directory for chomp workflows
+- `/chomp-init` — sets up the current project directory for chomp workflows (installs `/chomp` and `/bite` as project-level skills)
 
 ## Install
 
-Copy the skills and agents into your global Claude Code config:
+Copy the `chomp-init` skill and its bundled scripts/templates into your global Claude Code config:
 
 ```bash
 git clone https://github.com/jperrello/chomp.git /tmp/chomp-install
-
-# skills
-cp -r /tmp/chomp-install/.claude/skills/chomp ~/.claude/skills/chomp
-cp -r /tmp/chomp-install/.claude/skills/bite ~/.claude/skills/bite
 cp -r /tmp/chomp-install/.claude/skills/chomp-init ~/.claude/skills/chomp-init
-
-# subagent
-mkdir -p ~/.claude/agents
-cp /tmp/chomp-install/.claude/agents/rlm-subcall.md ~/.claude/agents/rlm-subcall.md
-
-# clean up
 rm -rf /tmp/chomp-install
 ```
 
@@ -32,11 +22,11 @@ Requires `git` and `python3`.
 
 ## Usage
 
-In any project directory:
+In any project directory, run `/chomp-init` first. This creates the `chomp/` directories and installs `/chomp` and `/bite` as project-level skills:
 
 ```
 /chomp-init
-/chomp https://github.com/someone/cool-lib
+/chomp https://github.com/someone/cool-lib clone
 ```
 
 After chomping, the skill generates bits and asks what you want to know. For cross-repo research:

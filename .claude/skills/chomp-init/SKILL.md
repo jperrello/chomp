@@ -30,7 +30,18 @@ No arguments.
 mkdir -p chomp/bits chomp/bites chomp/.rlm_state
 ```
 
-### 2. Update CLAUDE.md
+### 2. Install project-level skills and agent
+
+Copy the chomp and bite skills into the project's `.claude/` directory, and the rlm-subcall agent:
+
+```bash
+mkdir -p .claude/skills/chomp .claude/skills/bite .claude/agents
+cp ~/.claude/skills/chomp-init/templates/chomp-skill.md .claude/skills/chomp/SKILL.md
+cp ~/.claude/skills/chomp-init/templates/bite-skill.md .claude/skills/bite/SKILL.md
+cp ~/.claude/skills/chomp-init/templates/rlm-subcall.md .claude/agents/rlm-subcall.md
+```
+
+### 3. Update CLAUDE.md
 
 Check if a `CLAUDE.md` exists in the current working directory.
 
@@ -51,7 +62,7 @@ This project uses `/chomp` and `/bite` skills for analyzing GitHub repos.
 - Chunks and RLM state live in `chomp/.rlm_state/`
 ```
 
-### 3. Update .gitignore
+### 4. Update .gitignore
 
 Check if `.gitignore` exists. If it does, check whether it already contains `chomp/.rlm_state`. If not, append:
 
@@ -61,6 +72,6 @@ chomp/.rlm_state/
 
 If `.gitignore` does not exist, create it with that line.
 
-### 4. Confirm
+### 5. Confirm
 
 Print: "chomp initialized. Run `/chomp <git-url>` to analyze a repo."

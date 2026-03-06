@@ -57,8 +57,8 @@ Print the research questions so the user can see them.
 For each chomp name, init the RLM and write chunks to a chomp-specific directory:
 
 ```bash
-python3 ~/.claude/skills/chomp/scripts/rlm_repl.py init chomp/<name>.md
-python3 ~/.claude/skills/chomp/scripts/rlm_repl.py exec <<'PY'
+python3 ~/.claude/skills/chomp-init/scripts/rlm_repl.py init chomp/<name>.md
+python3 ~/.claude/skills/chomp-init/scripts/rlm_repl.py exec <<'PY'
 paths = write_chunks('chomp/.rlm_state/chunks/<name>', size=200000, overlap=0)
 print(len(paths))
 PY
