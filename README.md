@@ -23,10 +23,11 @@ Requires `git` and `python3`.
 
 ## Usage
 
-In any project directory, run `/chomp-init` first. This creates the `chomp/` directories and installs `/chomp` and `/bite` as project-level skills:
+In any project directory, run `/chomp-init` first. This creates the `chomp/` directories and installs `/chomp` and `/bite` as project-level skills. Exit and restart Claude Code after init so the new commands appear:
 
 ```
 /chomp-init
+# exit and restart Claude Code
 /chomp https://github.com/someone/cool-lib clone
 ```
 

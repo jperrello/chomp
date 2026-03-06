@@ -75,4 +75,4 @@ If `.gitignore` does not exist, create it with that line.
 
 ### 5. Confirm
 
-Print: "chomp initialized. Run `/chomp <git-url>` to analyze a repo, or `/chomp local` to analyze the current repo."
+Print: "chomp initialized. Exit and restart Claude Code to see `/chomp` and `/bite` commands. Then run `/chomp <git-url>` to analyze a repo, or `/chomp local` to analyze the current repo."
