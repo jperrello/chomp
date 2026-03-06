@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+# chomp - clones a git repo and dumps all its source code into a single markdown file.
+# useful for feeding an entire codebase to an LLM as context.
+#
+# the output has two sections:
+#   1. <filetree>  - an indented tree view of all included files
+#   2. <source_code> - every file's contents in fenced code blocks
+#
+# it automatically skips binary files, build artifacts, and common junk directories.
+
+# exit immediately on error (-e), treat unset variables as errors (-u),
+# and fail a pipeline if any command in it fails (-o pipefail)
+set -euo pipefail
+
+# --- default option values ---
+OUTPUT=""          # where to write the output markdown file
+EXTENSIONS=""      # if set, only include files with these extensions (comma-separated)
+EXTRA_EXCLUDES=""  # additional directory names to skip (comma-separated)
+
+# directories that are always skipped when walking the repo tree
+IGNORE_DIRS=".git node_modules __pycache__ .next dist build vendor .venv .tox .eggs .mypy_cache .pytest_cache .ruff_cache"
+
+# file extensions that are always skipped (binary/generated/large files)
+IGNORE_EXTS="png jpg jpeg gif ico svg woff woff2 ttf eot lock map min.js min.css pyc pyo so dylib dll exe bin pdf zip tar gz bz2 7z jar war"
+
+# prints usage info and exits
+usage() {
+  cat <<EOF
+Usage: chomp <git-url> [options]
+  -o, --output <path>    Output file (default: chomp/<repo-name>.md)
+  -e, --ext <list>       Only include these extensions (comma-separated)
+  -x, --exclude <list>   Additional dirs to exclude (comma-separated)
+EOF
+  exit 1
+}
+
+# --- argument parsing ---
+# loops through all CLI args, consuming flags with their values
+# and treating the first positional arg as the git URL
+URL=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -o|--output) OUTPUT="$2"; shift 2 ;;
+    -e|--ext) EXTENSIONS="$2"; shift 2 ;;
+    -x|--exclude) EXTRA_EXCLUDES="$2"; shift 2 ;;
+    -h|--help) usage ;;
+    -*) echo "Unknown option: $1"; usage ;;
+    *) URL="$1"; shift ;;  # first non-flag arg is the git URL
+  esac
+done
+
+# a git URL is required - bail out if none was provided
+if [[ -z "$URL" ]]; then
+  echo "Error: git URL required"
+  usage
+fi
+
+# extract the repo name from the URL (e.g. "https://github.com/foo/bar.git" -> "bar")
+REPO=$(basename "$URL" .git)
+
+# default output path: chomp/<repo-name>.md in the current working directory
+if [[ -z "$OUTPUT" ]]; then
+  OUTPUT="chomp/${REPO}.md"
+fi
+
+# --- clone the repo into a temp directory ---
+# mktemp -d creates a unique temporary directory
+# the trap ensures it gets cleaned up when the script exits (even on error)
+TMPDIR=$(mktemp -d)
+trap 'rm -rf "$TMPDIR"' EXIT
+
+echo "Cloning $URL..."
+# --depth 1: shallow clone (only latest commit) to save time and disk space
+git clone --depth 1 --quiet "$URL" "$TMPDIR/$REPO"
+
+REPODIR="$TMPDIR/$REPO"
+
+# --- build the full ignore list ---
+# start with the built-in ignore dirs, then append any user-specified ones
+ALL_IGNORE="$IGNORE_DIRS"
+if [[ -n "$EXTRA_EXCLUDES" ]]; then
+  # split the comma-separated list into an array and add each to ALL_IGNORE
+  IFS=',' read -ra XDIRS <<< "$EXTRA_EXCLUDES"
+  for d in "${XDIRS[@]}"; do
+    ALL_IGNORE="$ALL_IGNORE $d"
+  done
+fi
+
+# returns 0 (true) if the given filepath contains any ignored directory name
+# uses glob-style pattern matching: matches "/dirname/" anywhere in the path,
+# or "/dirname" at the end of the path
+ignored() {
+  local filepath="$1"
+  for d in $ALL_IGNORE; do
+    case "$filepath" in
+      *"/$d/"*|*"/$d") return 0 ;;  # 0 = true in bash (file should be skipped)
+    esac
+  done
+  return 1  # 1 = false (file is not ignored)
+}
+
+# --- collect all files that pass the filters ---
+# walks the cloned repo, applying three filters in order:
+#   1. skip files in ignored directories
+#   2. skip files with ignored extensions (binary/generated)
+#   3. if -e/--ext was specified, only keep files matching those extensions
+FILES=()
+while IFS= read -r -d '' file; do
+  # strip the temp dir prefix to get the relative path within the repo
+  rel="${file#$REPODIR/}"
+
+  # filter 1: skip if the file lives inside an ignored directory
+  ignored "$file" && continue
+
+  # extract the file extension (everything after the last dot)
+  ext="${file##*.}"
+
+  # filter 2: skip binary/generated file extensions
+  skip=false
+  for ie in $IGNORE_EXTS; do
+    if [[ "$ext" == "$ie" ]]; then
+      skip=true
+      break
+    fi
+  done
+  $skip && continue
+
+  # filter 3: if the user specified allowed extensions with -e,
+  # only include files whose extension matches one of them
+  if [[ -n "$EXTENSIONS" ]]; then
+    match=false
+    IFS=',' read -ra WANT <<< "$EXTENSIONS"
+    for w in "${WANT[@]}"; do
+      if [[ "$ext" == "$w" ]]; then
+        match=true
+        break
+      fi
+    done
+    $match || continue  # skip if no extension matched
+  fi
+
+  # file passed all filters - add its relative path to the list
+  FILES+=("$rel")
+done < <(find "$REPODIR" -type f -print0 | sort -z)
+# find -print0 / read -d '' uses null-byte delimiters to handle filenames with spaces
+
+echo "Found ${#FILES[@]} files"
+
+# --- generate an ASCII tree view of the file list ---
+# takes the sorted list of file paths and renders them as an indented tree,
+# deduplicating directory entries so each dir only appears once.
+#
+# example output:
+#   ├── src
+#       ├── index.ts
+#       ├── utils
+#           ├── helpers.ts
+#
+# the awk script works by splitting each path on "/", then for each path
+# component it builds a unique key (concatenation of all components up to
+# that depth). if the key hasn't been seen before, it prints the component
+# with the appropriate indentation.
+tree() {
+  for f in "${FILES[@]}"; do
+    echo "$f"
+  done | sort | awk -F/ '
+  {
+    for (i = 1; i <= NF; i++) {
+      indent = ""
+      for (j = 1; j < i; j++) indent = indent "    "
+      key = ""
+      for (j = 1; j <= i; j++) key = key "/" $j
+      if (!(key in seen)) {
+        seen[key] = 1
+        printf "%s├── %s\n", indent, $i
+      }
+    }
+  }'
+}
+
+# --- write the output markdown file ---
+# create parent directories if they don't exist (e.g. "chomp/")
+mkdir -p "$(dirname "$OUTPUT")"
+
+# write everything into the output file using a subshell redirect
+{
+  # section 1: the file tree overview
+  echo "<filetree>"
+  tree
+  echo "</filetree>"
+  echo ""
+
+  # section 2: the actual source code, each file in a fenced code block
+  echo "<source_code>"
+
+  for f in "${FILES[@]}"; do
+    echo "## $f"       # file path as a markdown heading
+    echo '```'         # open code fence
+    cat "$REPODIR/$f"  # dump the file contents
+    echo ""            # ensure a trailing newline
+    echo '```'         # close code fence
+    echo ""
+  done
+
+  echo "</source_code>"
+} > "$OUTPUT"
+
+# report the output path and file size
+echo "Written to $OUTPUT ($(wc -c < "$OUTPUT" | tr -d ' ') bytes)"
