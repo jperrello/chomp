@@ -5,6 +5,7 @@ Analyze any GitHub repo from inside Claude Code. Dumps source into a single file
 ## What it does
 
 - `/chomp <git-url> clone` — clones a repo, dumps all source into `chomp/<repo>.md`, generates neutral "bits" (summaries of APIs, patterns, dependencies), then lets you ask questions answered via chunk-by-chunk subagent analysis
+- `/chomp local` — same as above but dumps the current repo you're working in into `chomp/local.md` (excludes `chomp/` and `.claude/` dirs). Re-running overwrites the previous `local.md`
 - `/bite <chomp1,chomp2,...> <intent>` — cross-repo research: reads bits from multiple chomped repos, formulates targeted queries, runs them against all chunks, writes narrative research docs
 - `/chomp-init` — sets up the current project directory for chomp workflows (installs `/chomp` and `/bite` as project-level skills)
 

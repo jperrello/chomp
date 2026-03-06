@@ -1,6 +1,6 @@
 ---
 name: chomp
-description: Clone a GitHub repo, dump its source into a markdown file, then run a full RLM analysis loop against it.
+description: Clone a GitHub repo (or dump the current repo), generate a markdown file of its source, then run a full RLM analysis loop against it.
 user-invocable: true
 allowed-tools:
   - Read
@@ -14,40 +14,45 @@ allowed-tools:
 
 # chomp
 
-Clones a GitHub repo, generates a single markdown dump of its source, loads it as RLM context, generates bits (neutral structured summaries), and runs a full analysis loop.
+Clones a GitHub repo (or dumps the current repo with `local`), generates a single markdown file of its source, loads it as RLM context, generates bits (neutral structured summaries), and runs a full analysis loop.
 
 ## Invocation
 
 ```
-/chomp <git-url> [clone]
+/chomp <git-url|local> [clone]
 ```
 
-- `<git-url>` (required): GitHub repository URL.
-- `clone` (optional): if present, clone the repo into the current working directory so edits can be made.
+- `<git-url|local>` (required): GitHub repository URL, or `local` to chomp the current repo.
+- `clone` (optional): if present and using a git URL, clone the repo into the current working directory so edits can be made. Ignored when using `local`.
 
 ## Procedure
 
 ### 1. Parse arguments
 
-Read `$ARGUMENTS`. Extract the git URL and check whether the word `clone` is present.
+Read `$ARGUMENTS`. Determine if the first argument is `local` or a git URL. If it's a git URL, check whether the word `clone` is present.
 
-### 2. Clone the repo (if requested)
+### 2. Clone the repo (if requested, git URL only)
 
-If `clone` is in the arguments:
+If using a git URL and `clone` is in the arguments:
 ```bash
 git clone <git-url>
 ```
 This clones into the current working directory (wherever Claude Code is running).
 
+Skip this step entirely when the argument is `local`.
+
 ### 3. Generate the markdown dump
 
 Run the chomp shell script to produce the markdown file:
 ```bash
-bash ~/.claude/skills/chomp-init/scripts/chomp <git-url>
+bash ~/.claude/skills/chomp-init/scripts/chomp <git-url|local>
 ```
-This creates a file at `chomp/<repo-name>.md`.
+- For a git URL, this creates `chomp/<repo-name>.md`.
+- For `local`, this creates `chomp/local.md`. The `chomp/` and `.claude/` directories are automatically excluded. Running this again overwrites the previous `local.md`.
 
 ### 4. Load context into the RLM REPL
+
+Use `local` as the repo name when the argument is `local`, otherwise use the repo name extracted from the URL.
 
 ```bash
 python3 ~/.claude/skills/chomp-init/scripts/rlm_repl.py init chomp/<repo-name>.md

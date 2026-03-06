@@ -58,6 +58,7 @@ Check if a `CLAUDE.md` exists in the current working directory.
 This project uses `/chomp` and `/bite` skills for analyzing GitHub repos.
 
 - `/chomp <git-url> [clone]` — dump a repo's source into `chomp/<repo>.md`, generate bits to `chomp/bits/<repo>/`
+- `/chomp local` — dump the current repo into `chomp/local.md` and analyze it in place
 - `/bite <chomp1,chomp2,...> <intent>` — research across chomped repos, output to `chomp/bites/<slug>/`
 - Chunks and RLM state live in `chomp/.rlm_state/`
 ```
@@ -74,4 +75,4 @@ If `.gitignore` does not exist, create it with that line.
 
 ### 5. Confirm
 
-Print: "chomp initialized. Run `/chomp <git-url>` to analyze a repo."
+Print: "chomp initialized. Run `/chomp <git-url>` to analyze a repo, or `/chomp local` to analyze the current repo."

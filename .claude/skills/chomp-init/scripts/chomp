@@ -26,7 +26,7 @@ IGNORE_EXTS="png jpg jpeg gif ico svg woff woff2 ttf eot lock map min.js min.css
 # prints usage info and exits
 usage() {
   cat <<EOF
-Usage: chomp <git-url> [options]
+Usage: chomp <git-url|local> [options]
   -o, --output <path>    Output file (default: chomp/<repo-name>.md)
   -e, --ext <list>       Only include these extensions (comma-separated)
   -x, --exclude <list>   Additional dirs to exclude (comma-separated)
@@ -49,31 +49,34 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# a git URL is required - bail out if none was provided
+# a git URL or "local" is required - bail out if none was provided
 if [[ -z "$URL" ]]; then
-  echo "Error: git URL required"
+  echo "Error: git URL or 'local' required"
   usage
 fi
 
-# extract the repo name from the URL (e.g. "https://github.com/foo/bar.git" -> "bar")
-REPO=$(basename "$URL" .git)
+LOCAL_MODE=false
+if [[ "$URL" == "local" ]]; then
+  LOCAL_MODE=true
+  REPO="local"
+  REPODIR="$(pwd)"
+  IGNORE_DIRS="$IGNORE_DIRS chomp .claude"
+  if [[ -z "$OUTPUT" ]]; then
+    OUTPUT="chomp/local.md"
+  fi
+else
+  REPO=$(basename "$URL" .git)
+  if [[ -z "$OUTPUT" ]]; then
+    OUTPUT="chomp/${REPO}.md"
+  fi
 
-# default output path: chomp/<repo-name>.md in the current working directory
-if [[ -z "$OUTPUT" ]]; then
-  OUTPUT="chomp/${REPO}.md"
+  TMPDIR=$(mktemp -d)
+  trap 'rm -rf "$TMPDIR"' EXIT
+
+  echo "Cloning $URL..."
+  git clone --depth 1 --quiet "$URL" "$TMPDIR/$REPO"
+  REPODIR="$TMPDIR/$REPO"
 fi
-
-# --- clone the repo into a temp directory ---
-# mktemp -d creates a unique temporary directory
-# the trap ensures it gets cleaned up when the script exits (even on error)
-TMPDIR=$(mktemp -d)
-trap 'rm -rf "$TMPDIR"' EXIT
-
-echo "Cloning $URL..."
-# --depth 1: shallow clone (only latest commit) to save time and disk space
-git clone --depth 1 --quiet "$URL" "$TMPDIR/$REPO"
-
-REPODIR="$TMPDIR/$REPO"
 
 # --- build the full ignore list ---
 # start with the built-in ignore dirs, then append any user-specified ones
