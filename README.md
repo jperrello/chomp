@@ -1,13 +1,23 @@
 # chomp
 
-Analyze any GitHub repo from inside Claude Code. Dumps source into a single file, chunks it, runs RLM-style analysis with subagents, and produces structured research output.
+Turn any Github or personal repo into one big markdown file. Run RLM-style analysis with subagents, and produces structured research output. RLM is taken from https://github.com/brainqub3/claude_code_RLM and the MIT paper: https://arxiv.org/html/2512.24601v1.
 
-## What it does
+There are three use cases for chomp:
 
-- `/chomp <git-url> clone` — clones a repo, dumps all source into `chomp/<repo>.md`, generates neutral "bits" (summaries of APIs, patterns, dependencies), then lets you ask questions answered via chunk-by-chunk subagent analysis
+- You want to clone a repo into a fresh directory and have a large md copy of its content.
+- You want to reference a github repo and just want a md file to reference, not the individual code.
+- You want to turn your local codebase filetree and content into a single md file
+
+## Why would you want chomp?
+
+So you can run rlm calls on your codebase which has been proving to retrieve data accurately in a context efficient way. Without this you would need an agent to crawl your codebase, waste context, waste your time, and probably be wrong!
+
+## Use Cases
+
+- `/chomp <git-url> clone` — clones a repo, dumps all source into `chomp/<repo>.md`, then lets you ask questions answered via chunk-by-chunk subagent analysis
 - `/chomp local` — same as above but dumps the current repo you're working in into `chomp/local.md` (excludes `chomp/` and `.claude/` dirs). Re-running overwrites the previous `local.md`
-- `/bite <chomp1,chomp2,...> <intent>` — cross-repo research: reads bits from multiple chomped repos, formulates targeted queries, runs them against all chunks, writes narrative research docs
-- `/chomp-init` — sets up the current project directory for chomp workflows (installs `/chomp` and `/bite` as project-level skills)
+- `/bite <chomp1,chomp2,...> <intent>` — cross-repo research: formulates targeted queries collaboratively with the user, runs them against all chunks, writes narrative research docs
+- `/chomp-init` — sets up the current project directory for chomp workflows (installs `/chomp` and `/bite` as project-level skills) and runs an initial `chomp local` dump
 
 ## Install
 
@@ -23,7 +33,7 @@ Requires `git` and `python3`.
 
 ## Usage
 
-In any project directory, run `/chomp-init` first. This creates the `chomp/` directories and installs `/chomp` and `/bite` as project-level skills. Exit and restart Claude Code after init so the new commands appear:
+In any project directory, run `/chomp-init` first. This creates the `chomp/` directories, installs `/chomp` and `/bite` as project-level skills, and generates an initial `chomp/local.md` dump. Exit and restart Claude Code after init so the new commands appear:
 
 ```
 /chomp-init
@@ -31,11 +41,13 @@ In any project directory, run `/chomp-init` first. This creates the `chomp/` dir
 /chomp https://github.com/someone/cool-lib clone
 ```
 
-After chomping, the skill generates bits and asks what you want to know. For cross-repo research:
+After chomping, the skill asks what you want to know. For cross-repo research:
 
 ```
 /bite cool-lib,other-lib how do these two handle authentication
 ```
+
+The `/bite` command will draft research questions and ask you to refine them before running the analysis. This collaborative step ensures the research targets what you actually need.
 
 ## How it works
 
@@ -45,17 +57,11 @@ After chomping, the skill generates bits and asks what you want to know. For cro
 
 3. For each chunk, Claude Code spawns a `rlm-subcall` subagent (runs on Haiku) that extracts relevant information for a given query. Results are collected and synthesized in the main conversation.
 
-4. Bits (surface, patterns, deps) are neutral summaries cached in `chomp/bits/<repo>/` so future `/bite` calls don't re-analyze from scratch.
-
 ## File structure after use
 
 ```
 chomp/
   <repo>.md              # full source dump
-  bits/<repo>/           # neutral summaries
-    surface.md
-    patterns.md
-    deps.md
   bites/<intent-slug>/   # research output from /bite
     research.md
     surface-map.md

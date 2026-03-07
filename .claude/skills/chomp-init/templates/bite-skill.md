@@ -1,6 +1,6 @@
 ---
 name: bite
-description: Read bits from named chomps, formulate targeted research queries based on intent, run them against the full chomp files via RLM, and write structured research output.
+description: Cross-repo research — formulate targeted research queries based on intent, run them against chomped repos via RLM, and write structured research output.
 user-invocable: true
 allowed-tools:
   - Read
@@ -10,11 +10,12 @@ allowed-tools:
   - Glob
   - Bash
   - Agent
+  - AskUserQuestion
 ---
 
 # bite
 
-Reads bits for named chomps, formulates research questions driven by intent, runs them against the full chomp files, and writes structured output.
+Formulates research questions driven by intent, runs them against chomped repos, and writes structured output.
 
 ## Invocation
 
@@ -33,24 +34,28 @@ If chomp names or intent are missing, ask for them before proceeding.
 
 Read `$ARGUMENTS`. Extract the comma-separated chomp names and the intent string (everything after the chomp names).
 
-### 2. Verify chomps and read bits
+### 2. Verify chomps exist
 
 For each chomp name:
 - Verify `chomp/<name>.md` exists.
-- Read all bit files from `chomp/bits/<name>/` (surface.md, patterns.md, deps.md).
 
-If any chomp or its bits are missing, stop and tell the user. They may need to run `/chomp` first.
+If any chomp is missing, stop and tell the user. They may need to run `/chomp` first.
 
 ### 3. Formulate research questions
 
-Using the bits content and the user's intent, generate 3-8 targeted research questions. These should be specific enough to answer from source code. Think about:
+Based on the user's intent alone, draft 3-8 targeted research questions. These should be specific enough to answer from source code. Think about:
 
 - Where in each codebase does the intent touch?
 - What interfaces need to connect?
 - What mismatches or conflicts might exist?
 - What patterns in one codebase affect integration with another?
 
-Print the research questions so the user can see them.
+Then use `AskUserQuestion` to present the draft questions to the user and ask:
+- Are these the right questions?
+- Should any be added, removed, or sharpened?
+- Is there context you can share that would focus the research?
+
+Refine the questions based on user feedback. This back-and-forth ensures the research targets what the user actually needs rather than guessing.
 
 ### 4. Load and chunk each chomp
 

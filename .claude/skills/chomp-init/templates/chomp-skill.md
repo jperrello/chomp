@@ -14,7 +14,7 @@ allowed-tools:
 
 # chomp
 
-Clones a GitHub repo (or dumps the current repo with `local`), generates a single markdown file of its source, loads it as RLM context, generates bits (neutral structured summaries), and runs a full analysis loop.
+Clones a GitHub repo (or dumps the current repo with `local`), generates a single markdown file of its source, loads it as RLM context, and runs a full analysis loop.
 
 ## Invocation
 
@@ -76,32 +76,11 @@ print(paths[:5])
 PY
 ```
 
-### 7. Generate bits
+### 7. Ask the user their question
 
-Run three fixed queries against every chunk using the `rlm-subcall` subagent. These are neutral queries — they capture what the codebase *is*, not what the user wants to do with it.
+Print a brief summary of what was loaded (repo name, file count, total size). Stop here and ask the user what they want to know or do with this codebase. Wait for their response before continuing.
 
-**Queries:**
-
-1. **surface** — "What are the public APIs, exports, and entry points in this code? List each module's public interface with function signatures and types."
-2. **patterns** — "What architectural patterns, conventions, and idioms does this codebase use? Note data flow, error handling, state management, and structural patterns."
-3. **deps** — "What are the external dependencies and what does each one provide? Note any significant internal coupling between modules."
-
-**For each query**, invoke the `rlm-subcall` subagent against each chunk file. Collect all results.
-
-**Synthesize** — for each query, combine the subcall results into a single coherent markdown file. Keep each file under 500 words. Write to:
-
-```
-chomp/bits/<repo-name>/
-  surface.md
-  patterns.md
-  deps.md
-```
-
-### 8. Ask the user their question
-
-Print a summary of the bits that were generated. Stop here and ask the user what they want to know or do with this codebase. Wait for their response before continuing.
-
-### 9. Run the full RLM loop
+### 8. Run the full RLM loop
 
 Once the user provides their question, execute the full RLM workflow:
 
