@@ -20,10 +20,10 @@ Formulates research questions driven by intent, runs them against chomped repos,
 ## Invocation
 
 ```
-/bite <chomp1,chomp2,...> <intent>
+/bite <chomp1,chomp2,...|all> <intent>
 ```
 
-- `<chomp1,chomp2,...>` (required): Comma-separated chomp names (matching filenames in `chomp/`).
+- `<chomp1,chomp2,...>` or `all` (required): Comma-separated chomp names (matching filenames in `chomp/`), or `all` to use every `.md` file in `chomp/`.
 - `<intent>` (required): What the user wants to accomplish. A phrase or sentence.
 
 If chomp names or intent are missing, ask for them before proceeding.
@@ -32,7 +32,11 @@ If chomp names or intent are missing, ask for them before proceeding.
 
 ### 1. Parse arguments
 
-Read `$ARGUMENTS`. Extract the comma-separated chomp names and the intent string (everything after the chomp names).
+Read `$ARGUMENTS`. Extract the first token as the chomp selector and the rest as the intent string.
+
+If the chomp selector is `all`, glob for all `chomp/*.md` files and use their basenames (without `.md`) as the chomp names. If no `.md` files exist in `chomp/`, stop and tell the user to run `/chomp` first.
+
+Otherwise, split the first token on commas to get the chomp names.
 
 ### 2. Verify chomps exist
 
