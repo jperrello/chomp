@@ -1,0 +1,113 @@
+{
+  "meta": {
+    "version": "1.0",
+    "description": "Project knowledge graph. Read this first, follow edges to content files.",
+    "node_types": ["note", "concept", "code", "config"],
+    "edge_types": ["references", "imports", "relates", "supports", "contrasts", "uses", "contains"]
+  },
+  "nodes": [
+    {
+      "id": "claude-md",
+      "type": "config",
+      "desc": "Project-level instructions for Claude Code. Points to README.md for details.",
+      "file": "config/claude-md.md",
+      "edges": [
+        { "to": "readme", "rel": "references" }
+      ],
+      "gravity": 0.2
+    },
+    {
+      "id": "readme",
+      "type": "note",
+      "desc": "Comprehensive project documentation: installation, usage, architecture, and file structure for the chomp/bite Claude Code skills.",
+      "file": "note/readme.md",
+      "edges": [
+        { "to": "chomp-design-fiction", "rel": "references" },
+        { "to": "chomp-script", "rel": "references" },
+        { "to": "rlm-repl", "rel": "references" }
+      ],
+      "gravity": 0.8
+    },
+    {
+      "id": "chomp-design-fiction",
+      "type": "concept",
+      "desc": "Design fiction showing chomp/bite workflows through a narrative scenario. Defines the conceptual model: chomp is the meal, bite is what you cook next.",
+      "file": "concept/chomp-design-fiction.md",
+      "edges": [
+        { "to": "readme", "rel": "relates" },
+        { "to": "chomp-skill", "rel": "relates" },
+        { "to": "bite-skill", "rel": "relates" }
+      ],
+      "gravity": 0.8
+    },
+    {
+      "id": "chomp-init-skill",
+      "type": "config",
+      "desc": "Skill definition for /chomp-init: creates project directories, installs /chomp and /bite as project-level skills, updates CLAUDE.md and .gitignore.",
+      "file": "config/chomp-init-skill.md",
+      "edges": [
+        { "to": "chomp-script", "rel": "uses" },
+        { "to": "rlm-repl", "rel": "uses" },
+        { "to": "chomp-skill", "rel": "uses" },
+        { "to": "bite-skill", "rel": "uses" },
+        { "to": "rlm-subcall", "rel": "uses" }
+      ],
+      "gravity": 1.0
+    },
+    {
+      "id": "chomp-script",
+      "type": "code",
+      "desc": "Bash script that clones a git repo (or reads local) and dumps all source files into a single markdown file with filetree and fenced code blocks.",
+      "file": "code/chomp-script.md",
+      "edges": [
+        { "to": "rlm-repl", "rel": "relates" }
+      ],
+      "gravity": 1.0
+    },
+    {
+      "id": "rlm-repl",
+      "type": "code",
+      "desc": "Python persistent REPL for RLM workflows. Provides init, exec, status, reset, chunking, grep, and buffer helpers with pickle-based state persistence.",
+      "file": "code/rlm-repl.md",
+      "edges": [
+        { "to": "chomp-script", "rel": "relates" }
+      ],
+      "gravity": 1.0
+    },
+    {
+      "id": "bite-skill",
+      "type": "config",
+      "desc": "Skill template for /bite: cross-repo research that formulates questions with the user, runs RLM subcalls against chunks, and writes research.md and surface-map.md.",
+      "file": "config/bite-skill.md",
+      "edges": [
+        { "to": "rlm-repl", "rel": "uses" },
+        { "to": "rlm-subcall", "rel": "uses" },
+        { "to": "chomp-script", "rel": "uses" }
+      ],
+      "gravity": 1.0
+    },
+    {
+      "id": "chomp-skill",
+      "type": "config",
+      "desc": "Skill template for /chomp: clones or dumps a repo, loads into RLM, chunks it, and runs a full subcall analysis loop against user questions.",
+      "file": "config/chomp-skill.md",
+      "edges": [
+        { "to": "rlm-repl", "rel": "uses" },
+        { "to": "chomp-script", "rel": "uses" },
+        { "to": "rlm-subcall", "rel": "uses" }
+      ],
+      "gravity": 1.0
+    },
+    {
+      "id": "rlm-subcall",
+      "type": "config",
+      "desc": "Agent template for the RLM sub-LLM (runs on Haiku). Extracts relevant info from a single chunk given a query and returns structured JSON.",
+      "file": "config/rlm-subcall.md",
+      "edges": [
+        { "to": "chomp-skill", "rel": "supports" },
+        { "to": "bite-skill", "rel": "supports" }
+      ],
+      "gravity": 1.0
+    }
+  ]
+}

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Moons — chomp</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a1a; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; }
+
+#controls {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+  background: rgba(10,10,26,0.92); backdrop-filter: blur(8px);
+  padding: 12px 20px; display: flex; align-items: center; gap: 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+#controls h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; color: #fff; }
+#controls h1 span { color: #888; font-weight: 400; }
+
+.legend { display: flex; gap: 10px; flex-wrap: wrap; margin-left: auto; }
+.legend-item {
+  display: flex; align-items: center; gap: 5px; font-size: 12px;
+  cursor: pointer; padding: 3px 8px; border-radius: 12px;
+  transition: opacity 0.2s;
+}
+.legend-item.dimmed { opacity: 0.3; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+#search {
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 13px; width: 180px;
+  outline: none;
+}
+#search:focus { border-color: rgba(255,255,255,0.3); }
+#search::placeholder { color: #666; }
+
+#tooltip {
+  position: fixed; pointer-events: none; z-index: 20;
+  background: rgba(20,20,40,0.95); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px; padding: 12px 16px; max-width: 320px;
+  font-size: 13px; line-height: 1.5; display: none;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+#tooltip .tt-id { font-weight: 600; color: #fff; margin-bottom: 4px; }
+#tooltip .tt-type { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+#tooltip .tt-desc { color: #bbb; }
+#tooltip .tt-file { color: #666; font-size: 11px; margin-top: 6px; font-family: monospace; }
+#tooltip .tt-edges { color: #888; font-size: 11px; margin-top: 4px; }
+
+#detail {
+  position: fixed; bottom: 20px; left: 20px; z-index: 10;
+  background: rgba(20,20,40,0.95); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px; padding: 16px 20px; max-width: 360px;
+  display: none; font-size: 13px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+#detail .d-close {
+  position: absolute; top: 8px; right: 12px; cursor: pointer;
+  color: #666; font-size: 18px;
+}
+#detail .d-close:hover { color: #fff; }
+#detail .d-id { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+#detail .d-type { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+#detail .d-desc { color: #ccc; margin-bottom: 8px; }
+#detail .d-file { color: #888; font-size: 12px; font-family: monospace; margin-bottom: 8px; }
+#detail .d-edges { color: #aaa; font-size: 12px; }
+#detail .d-edges div { margin: 2px 0; }
+#detail .d-edges .edge-rel { color: #666; font-size: 11px; }
+
+#stats {
+  position: fixed; bottom: 20px; right: 20px; z-index: 10;
+  font-size: 11px; color: #555;
+}
+
+svg { width: 100vw; height: 100vh; }
+
+.link { stroke-opacity: 0.25; fill: none; }
+.link.highlighted { stroke-opacity: 0.8; }
+.link-label { font-size: 9px; fill: #555; pointer-events: none; display: none; }
+.link-label.visible { display: block; }
+
+.node circle { stroke-width: 2; cursor: pointer; transition: r 0.15s; }
+.node circle:hover { filter: brightness(1.3); }
+.node text {
+  font-size: 10px; fill: #aaa; pointer-events: none;
+  text-anchor: middle; dominant-baseline: central;
+}
+.node.dimmed circle { opacity: 0.12; }
+.node.dimmed text { opacity: 0.08; }
+.link.dimmed { stroke-opacity: 0.04; }
+.node.search-match circle { stroke: #fff; stroke-width: 3; }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <h1>Moons <span>chomp</span></h1>
+  <input id="search" type="text" placeholder="Search nodes...">
+  <div class="legend" id="legend"></div>
+</div>
+
+<div id="tooltip">
+  <div class="tt-id"></div>
+  <div class="tt-type"></div>
+  <div class="tt-desc"></div>
+  <div class="tt-file"></div>
+  <div class="tt-edges"></div>
+</div>
+
+<div id="detail">
+  <span class="d-close" onclick="this.parentElement.style.display='none'">&times;</span>
+  <div class="d-id"></div>
+  <div class="d-type"></div>
+  <div class="d-desc"></div>
+  <div class="d-file"></div>
+  <div class="d-edges"></div>
+</div>
+
+<div id="stats"></div>
+
+<svg></svg>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const GRAPH_DATA = {"meta":{"version":"1.0","description":"Project knowledge graph. Read this first, follow edges to content files.","node_types":["note","concept","code","config"],"edge_types":["references","imports","relates","supports","contrasts","uses","contains"]},"nodes":[{"id":"claude-md","type":"config","desc":"Project-level instructions for Claude Code. Points to README.md for details.","file":"config/claude-md.md","edges":[{"to":"readme","rel":"references"}],"gravity":0.2},{"id":"readme","type":"note","desc":"Comprehensive project documentation: installation, usage, architecture, and file structure for the chomp/bite Claude Code skills.","file":"note/readme.md","edges":[{"to":"chomp-design-fiction","rel":"references"},{"to":"chomp-script","rel":"references"},{"to":"rlm-repl","rel":"references"}],"gravity":0.8},{"id":"chomp-design-fiction","type":"concept","desc":"Design fiction showing chomp/bite workflows through a narrative scenario. Defines the conceptual model: chomp is the meal, bite is what you cook next.","file":"concept/chomp-design-fiction.md","edges":[{"to":"readme","rel":"relates"},{"to":"chomp-skill","rel":"relates"},{"to":"bite-skill","rel":"relates"}],"gravity":0.8},{"id":"chomp-init-skill","type":"config","desc":"Skill definition for /chomp-init: creates project directories, installs /chomp and /bite as project-level skills, updates CLAUDE.md and .gitignore.","file":"config/chomp-init-skill.md","edges":[{"to":"chomp-script","rel":"uses"},{"to":"rlm-repl","rel":"uses"},{"to":"chomp-skill","rel":"uses"},{"to":"bite-skill","rel":"uses"},{"to":"rlm-subcall","rel":"uses"}],"gravity":1.0},{"id":"chomp-script","type":"code","desc":"Bash script that clones a git repo (or reads local) and dumps all source files into a single markdown file with filetree and fenced code blocks.","file":"code/chomp-script.md","edges":[{"to":"rlm-repl","rel":"relates"}],"gravity":1.0},{"id":"rlm-repl","type":"code","desc":"Python persistent REPL for RLM workflows. Provides init, exec, status, reset, chunking, grep, and buffer helpers with pickle-based state persistence.","file":"code/rlm-repl.md","edges":[{"to":"chomp-script","rel":"relates"}],"gravity":1.0},{"id":"bite-skill","type":"config","desc":"Skill template for /bite: cross-repo research that formulates questions with the user, runs RLM subcalls against chunks, and writes research.md and surface-map.md.","file":"config/bite-skill.md","edges":[{"to":"rlm-repl","rel":"uses"},{"to":"rlm-subcall","rel":"uses"},{"to":"chomp-script","rel":"uses"}],"gravity":1.0},{"id":"chomp-skill","type":"config","desc":"Skill template for /chomp: clones or dumps a repo, loads into RLM, chunks it, and runs a full subcall analysis loop against user questions.","file":"config/chomp-skill.md","edges":[{"to":"rlm-repl","rel":"uses"},{"to":"chomp-script","rel":"uses"},{"to":"rlm-subcall","rel":"uses"}],"gravity":1.0},{"id":"rlm-subcall","type":"config","desc":"Agent template for the RLM sub-LLM (runs on Haiku). Extracts relevant info from a single chunk given a query and returns structured JSON.","file":"config/rlm-subcall.md","edges":[{"to":"chomp-skill","rel":"supports"},{"to":"bite-skill","rel":"supports"}],"gravity":1.0}]};
+
+const BASE_RADIUS = {"note":10,"concept":10,"code":10,"config":10};
+
+const EDGE_COLORS = {
+  references:  '#3498db',
+  imports:     '#e67e22',
+  relates:     '#95a5a6',
+  supports:    '#2ecc71',
+  contrasts:   '#e74c3c',
+  uses:        '#9b59b6',
+  contains:    '#1abc9c'
+};
+
+function R(d) {
+  const base = BASE_RADIUS[d.type] || 10;
+  const g = d.gravity != null ? d.gravity : 0.5;
+  return base * (0.5 + 0.5 * g);
+}
+
+let graph, nodes, links;
+let simulation;
+let activeTypes = new Set(Object.keys(COLORS));
+let selectedNode = null;
+
+fetch('./graph.json')
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(data => { graph = data; build(data); })
+  .catch(() => { graph = GRAPH_DATA; build(GRAPH_DATA); });
+
+function build(data) {
+  nodes = data.nodes.map(n => ({...n}));
+  links = [];
+  const ids = new Set(nodes.map(n => n.id));
+
+  for (const n of data.nodes) {
+    if (!n.edges) continue;
+    for (const e of n.edges) {
+      if (ids.has(e.to)) {
+        links.push({ source: n.id, target: e.to, rel: e.rel });
+      }
+    }
+  }
+
+  document.getElementById('stats').textContent =
+    `${nodes.length} nodes \u00b7 ${links.length} edges`;
+
+  const legend = document.getElementById('legend');
+  for (const [type, color] of Object.entries(COLORS)) {
+    const count = nodes.filter(n => n.type === type).length;
+    if (count === 0) continue;
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<span class="legend-dot" style="background:${color}"></span>${type} (${count})`;
+    item.onclick = () => toggleType(type, item);
+    legend.appendChild(item);
+  }
+
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const svg = d3.select('svg');
+  const g = svg.append('g');
+
+  const zoom = d3.zoom()
+    .scaleExtent([0.2, 5])
+    .on('zoom', e => g.attr('transform', e.transform));
+  svg.call(zoom);
+
+  const defs = svg.append('defs');
+  for (const [rel, color] of Object.entries(EDGE_COLORS)) {
+    defs.append('marker')
+      .attr('id', `arrow-${rel}`)
+      .attr('viewBox', '0 -4 8 8')
+      .attr('refX', 20).attr('refY', 0)
+      .attr('markerWidth', 6).attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path').attr('d', 'M0,-4L8,0L0,4').attr('fill', color);
+  }
+
+  const link = g.append('g')
+    .selectAll('line').data(links).join('line')
+    .attr('class', 'link')
+    .attr('stroke', d => EDGE_COLORS[d.rel] || '#444')
+    .attr('stroke-width', 1)
+    .attr('marker-end', d => `url(#arrow-${d.rel})`);
+
+  const linkLabel = g.append('g')
+    .selectAll('text').data(links).join('text')
+    .attr('class', 'link-label')
+    .text(d => d.rel);
+
+  const node = g.append('g')
+    .selectAll('g').data(nodes).join('g')
+    .attr('class', 'node')
+    .call(d3.drag()
+      .on('start', dragStart)
+      .on('drag', dragging)
+      .on('end', dragEnd));
+
+  node.append('circle')
+    .attr('r', d => R(d))
+    .attr('fill', d => COLORS[d.type] || '#666')
+    .attr('stroke', d => d3.color(COLORS[d.type] || '#666').darker(0.5));
+
+  node.append('text')
+    .text(d => d.id)
+    .attr('dy', d => R(d) + 12);
+
+  const tooltip = document.getElementById('tooltip');
+  node.on('mouseover', (e, d) => {
+    const edgeCount = links.filter(l =>
+      (l.source.id || l.source) === d.id || (l.target.id || l.target) === d.id
+    ).length;
+    tooltip.querySelector('.tt-id').textContent = d.id;
+    tooltip.querySelector('.tt-type').textContent = d.type;
+    tooltip.querySelector('.tt-type').style.color = COLORS[d.type];
+    tooltip.querySelector('.tt-desc').textContent = d.desc;
+    tooltip.querySelector('.tt-file').textContent = d.file || '';
+    tooltip.querySelector('.tt-edges').textContent = `${edgeCount} connections`;
+    tooltip.style.display = 'block';
+  }).on('mousemove', (e) => {
+    tooltip.style.left = (e.clientX + 16) + 'px';
+    tooltip.style.top = (e.clientY + 16) + 'px';
+  }).on('mouseout', () => {
+    tooltip.style.display = 'none';
+  }).on('click', (e, d) => {
+    showDetail(d);
+    const connected = new Set();
+    connected.add(d.id);
+    links.forEach(l => {
+      const sid = l.source.id || l.source;
+      const tid = l.target.id || l.target;
+      if (sid === d.id) connected.add(tid);
+      if (tid === d.id) connected.add(sid);
+    });
+    node.classed('dimmed', n => !connected.has(n.id));
+    link.classed('dimmed', l => {
+      const sid = l.source.id || l.source;
+      const tid = l.target.id || l.target;
+      return !connected.has(sid) || !connected.has(tid);
+    });
+    linkLabel.classed('visible', l => {
+      const sid = l.source.id || l.source;
+      const tid = l.target.id || l.target;
+      return connected.has(sid) && connected.has(tid);
+    });
+  });
+
+  svg.on('click', (e) => {
+    if (e.target.tagName === 'svg') {
+      node.classed('dimmed', false);
+      link.classed('dimmed', false);
+      linkLabel.classed('visible', false);
+      document.getElementById('detail').style.display = 'none';
+      selectedNode = null;
+    }
+  });
+
+  document.getElementById('search').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    if (!q) {
+      node.classed('search-match', false).classed('dimmed', false);
+      link.classed('dimmed', false);
+      return;
+    }
+    node.classed('search-match', d =>
+      d.id.toLowerCase().includes(q) ||
+      (d.desc || '').toLowerCase().includes(q) ||
+      d.type.toLowerCase().includes(q)
+    );
+  });
+
+  simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+    .force('charge', d3.forceManyBody().strength(-300))
+    .force('center', d3.forceCenter(w / 2, h / 2))
+    .force('collision', d3.forceCollide().radius(d => R(d) + 8))
+    .force('x', d3.forceX(w / 2).strength(0.04))
+    .force('y', d3.forceY(h / 2).strength(0.04));
+
+  simulation.on('tick', () => {
+    link
+      .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    linkLabel
+      .attr('x', d => (d.source.x + d.target.x) / 2)
+      .attr('y', d => (d.source.y + d.target.y) / 2);
+    node.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+
+  setTimeout(() => {
+    simulation.alphaTarget(0).alphaDecay(0.05);
+    simulation.alpha(0.3).restart();
+  }, 100);
+
+  window._node = node;
+  window._link = link;
+  window._linkLabel = linkLabel;
+}
+
+function showDetail(d) {
+  selectedNode = d;
+  const det = document.getElementById('detail');
+  det.querySelector('.d-id').textContent = d.id;
+  det.querySelector('.d-type').textContent = d.type;
+  det.querySelector('.d-type').style.color = COLORS[d.type];
+  det.querySelector('.d-desc').textContent = d.desc;
+  det.querySelector('.d-file').textContent = d.file || '';
+
+  const edgesDiv = det.querySelector('.d-edges');
+  edgesDiv.innerHTML = '';
+  if (d.edges) {
+    for (const e of d.edges) {
+      const div = document.createElement('div');
+      div.innerHTML = `<span class="edge-rel">${e.rel}</span> &rarr; ${e.to}`;
+      edgesDiv.appendChild(div);
+    }
+  }
+  const incoming = links.filter(l => (l.target.id || l.target) === d.id);
+  if (incoming.length) {
+    const hdr = document.createElement('div');
+    hdr.style.marginTop = '6px';
+    hdr.style.color = '#666';
+    hdr.style.fontSize = '11px';
+    hdr.textContent = 'Incoming:';
+    edgesDiv.appendChild(hdr);
+    for (const l of incoming) {
+      const div = document.createElement('div');
+      const sid = l.source.id || l.source;
+      div.innerHTML = `${sid} <span class="edge-rel">${l.rel}</span> &rarr;`;
+      edgesDiv.appendChild(div);
+    }
+  }
+  det.style.display = 'block';
+}
+
+function toggleType(type, el) {
+  if (activeTypes.has(type)) {
+    activeTypes.delete(type);
+    el.classList.add('dimmed');
+  } else {
+    activeTypes.add(type);
+    el.classList.remove('dimmed');
+  }
+  window._node.style('display', d => activeTypes.has(d.type) ? null : 'none');
+  window._link.style('display', d => {
+    const st = d.source.type || nodes.find(n => n.id === d.source)?.type;
+    const tt = d.target.type || nodes.find(n => n.id === d.target)?.type;
+    return activeTypes.has(st) && activeTypes.has(tt) ? null : 'none';
+  });
+}
+
+function dragStart(e, d) {
+  if (!e.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x; d.fy = d.y;
+}
+function dragging(e, d) { d.fx = e.x; d.fy = e.y; }
+function dragEnd(e, d) {
+  if (!e.active) simulation.alphaTarget(0);
+  d.fx = null; d.fy = null;
+}
+</script>
+</body>
+</html>
