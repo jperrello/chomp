@@ -20,23 +20,27 @@ Formulates research questions driven by intent, runs them against chomped repos,
 ## Invocation
 
 ```
-/bite <chomp1,chomp2,...|all> <intent>
+/bite [chomp1,chomp2,...|all] <intent>
 ```
 
-- `<chomp1,chomp2,...>` or `all` (required): Comma-separated chomp names (matching filenames in `chomp/`), or `all` to use every `.md` file in `chomp/`.
+- `<chomp1,chomp2,...>` or `all` (optional, defaults to `all`): Comma-separated chomp names (matching filenames in `chomp/`), or `all` to use every `.md` file in `chomp/`.
 - `<intent>` (required): What the user wants to accomplish. A phrase or sentence.
 
-If chomp names or intent are missing, ask for them before proceeding.
+If intent is missing, ask for it before proceeding.
 
 ## Procedure
 
 ### 1. Parse arguments
 
-Read `$ARGUMENTS`. Extract the first token as the chomp selector and the rest as the intent string.
+Read `$ARGUMENTS`. Extract the first token as a candidate chomp selector.
+
+If the first token is `all`, or matches a comma-separated list where every name corresponds to a file in `chomp/<name>.md`, treat it as the chomp selector and use the remaining tokens as the intent string.
+
+Otherwise, treat the entire argument string as the intent and default the chomp selector to `all`.
 
 If the chomp selector is `all`, glob for all `chomp/*.md` files and use their basenames (without `.md`) as the chomp names. If no `.md` files exist in `chomp/`, stop and tell the user to run `/chomp` first.
 
-Otherwise, split the first token on commas to get the chomp names.
+Otherwise, split the chomp selector on commas to get the chomp names.
 
 ### 2. Verify chomps exist
 
