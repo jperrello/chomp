@@ -59,6 +59,7 @@ This project uses `/chomp` and `/bite` skills for analyzing GitHub repos.
 
 - `/chomp <git-url> [clone]` — dump a repo's source into `chomp/<repo>.md` and analyze it via RLM
 - `/chomp local` — dump the current repo into `chomp/local.md` and analyze it in place
+- `/chomp <filepath>` — convert a local file (PDF, DOCX, etc.) to `chomp/<name>.md` and analyze it
 - `/bite <chomp1,chomp2,...> <intent>` — research across chomped repos, output to `chomp/bites/<slug>/`
 - Chunks and RLM state live in `chomp/.rlm_state/`
 ```

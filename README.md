@@ -2,11 +2,12 @@
 
 Turn any Github or personal repo into one big markdown file. Run RLM-style analysis with subagents, and produces structured research output. RLM is taken from https://github.com/brainqub3/claude_code_RLM and the MIT paper: https://arxiv.org/html/2512.24601v1.
 
-There are three use cases for chomp:
+There are four use cases for chomp:
 
 - You want to clone a repo into a fresh directory and have a large md copy of its content.
 - You want to reference a github repo and just want a md file to reference, not the individual code.
-- You want to turn your local codebase filetree and content into a single md file
+- You want to turn your local codebase filetree and content into a single md file.
+- You have a file (PDF, DOCX, etc.) and want to convert it to markdown for analysis.
 
 ## Why would you want chomp?
 
@@ -16,6 +17,7 @@ So you can run rlm calls on your codebase which has been proving to retrieve dat
 
 - `/chomp <git-url> clone` — clones a repo, dumps all source into `chomp/<repo>.md`, then lets you ask questions answered via chunk-by-chunk subagent analysis
 - `/chomp local` — same as above but dumps the current repo you're working in into `chomp/local.md` (excludes `chomp/` and `.claude/` dirs). Re-running overwrites the previous `local.md`
+- `/chomp report.pdf` — converts a local file to markdown at `chomp/report.md`, then runs the same RLM analysis. The agent figures out what tools to use for the conversion (pdftotext, pandoc, etc.) and installs dependencies if needed
 - `/bite <chomp1,chomp2,...> <intent>` — cross-repo research: formulates targeted queries collaboratively with the user, runs them against all chunks, writes narrative research docs
 - `/chomp-init` — sets up the current project directory for chomp workflows (installs `/chomp` and `/bite` as project-level skills) and runs an initial `chomp local` dump
 
@@ -51,7 +53,7 @@ The `/bite` command will draft research questions and ask you to refine them bef
 
 ## How it works
 
-1. The `chomp` shell script shallow-clones the repo into a temp dir, walks all source files (skipping binaries/artifacts), and writes a single markdown file with a filetree + all source in fenced code blocks.
+1. The `chomp` shell script shallow-clones the repo into a temp dir, walks all source files (skipping binaries/artifacts), and writes a single markdown file with a filetree + all source in fenced code blocks. For file mode, the agent converts the file to markdown using whatever tools work (pdftotext, pandoc, etc.), installing dependencies as needed.
 
 2. The `rlm_repl.py` Python script loads that file, chunks it into ~200k char pieces, and writes them to disk.
 

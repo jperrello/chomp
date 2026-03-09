@@ -10,40 +10,32 @@ Today she finds `github.com/mira/streamcore` — a library that handles exactly 
 /chomp github.com/mira/streamcore
 ```
 
-No clone. She doesn't want the code in her working directory. She just wants to understand it. The script clones into a temp dir, dumps every source file into `chomp/streamcore.md`, loads it into the RLM, and generates bits — small structured files that capture the first hump of understanding.
+No clone. She doesn't want the code in her working directory. She just wants to understand it. The script clones into a temp dir, dumps every source file into `chomp/streamcore.md`, loads it into the RLM, chunks it, and asks what she wants to know.
 
 ```
 chomp/streamcore.md (218k)
 12 chunks queued
-generating bits...
 
-wrote chomp/bits/streamcore/
-  surface.md
-  patterns.md
-  deps.md
+What do you want to know about this codebase?
 ```
 
-The system fires off fixed queries against each chunk. Not questions about what Ava wants to do — neutral questions. What does this module export? What patterns does this codebase follow? What are the external dependencies? Each sub-LLM call returns a small structured answer. These get collected and written out.
-
-Each file is a few hundred words. `surface.md` lists the public API — `createStream()`, `BufferPolicy`, `tap()`, `merge()`. `patterns.md` notes that streamcore uses a pull-based iterator protocol, not push-based events. `deps.md` shows it depends on nothing — zero external packages.
-
-Ava glances at the bits. She doesn't read them carefully. They're not for her — they're for the next LLM call.
+She asks a couple quick questions — what's the public API, how does it handle backpressure. The RLM fires subcalls against the chunks, extracts what's relevant, synthesizes an answer. Fast and cheap. She gets what she needs without reading the source herself.
 
 ---
 
 ## The bite
 
-She types:
+Now she wants to integrate it. She types:
 
 ```
 /bite dash,streamcore integrate streamcore into my working directory
 ```
 
-The bite command reads the bits for both repos — `chomp/bits/dash/` and `chomp/bits/streamcore/` — and formulates research questions. Where does dash currently handle backpressure? What would streamcore's `BufferPolicy` replace? Are there type mismatches between streamcore's iterator protocol and dash's event-based WebSocket handler?
+The bite command formulates research questions based on her intent. Where does dash currently handle backpressure? What would streamcore replace? Are there type mismatches between streamcore's iterator protocol and dash's event-based WebSocket handler?
 
-The RLM runs these questions against the full chomp files. Not the bits — the actual 400k and 218k dumps. The bits told it where to look. The chomps have the actual code.
+It presents the draft questions and asks Ava to refine them. She adds one — "does streamcore have any opinion about reconnection, or is that orthogonal?" — and drops one she doesn't care about.
 
-The answers come back. The system writes:
+The RLM runs these questions against the full chomp files. The actual 400k and 218k dumps. Every chunk gets a subcall. The answers come back. The system writes:
 
 ```
 chomp/bites/integrate-streamcore/
@@ -76,7 +68,7 @@ Ava reads `research.md`. She sees the `EventEmitter` -> `AsyncIterator` mismatch
 
 ## Three days later
 
-Ava finds another repo — a date-formatting library. She chomps it. Bits get generated. She never creates a bite for it. She just queries the chomp directly through the RLM when she has a quick question about its locale handling. The bits sit there, tiny and inert, waiting in case a future bite needs to understand the library without reading 150k of source.
+Ava finds another repo — a date-formatting library. She chomps it. She never creates a bite for it. She just queries the chomp directly through the RLM when she has a quick question about its locale handling. The chomp file sits there, inert, ready for a future bite or a quick ad-hoc question.
 
 ---
 
@@ -86,28 +78,22 @@ Ava finds another repo — a date-formatting library. She chomps it. Bits get ge
 chomp/
   dash.md                         <- chomp (full dump, queryable via RLM)
   streamcore.md                   <- chomp
-  bits/
-    dash/                         <- bits (neutral, durable, small)
-      surface.md
-      patterns.md
-      deps.md
-    streamcore/
-      surface.md
-      patterns.md
-      deps.md
   bites/
-    integrate-streamcore/         <- bite (task-specific, timestamped)
+    integrate-streamcore/         <- bite (task-specific research)
       research.md
       surface-map.md
+  .rlm_state/                    <- chunks and scratch (gitignored)
 ```
 
 ## Commands
 
-**`/chomp <url> [clone]`** — Clone repo (temp dir unless `clone` specified), dump all source into `chomp/<name>.md`, load into RLM, generate bits. The chomp is the ground truth.
+**`/chomp <url> [clone]`** — Clone repo (temp dir unless `clone` specified), dump all source into `chomp/<name>.md`, load into RLM, chunk it, and ask the user what they want to know. The chomp is the ground truth.
 
-**`/bite <chomp1,chomp2,...> <intent>`** — Read bits for the named chomps, formulate targeted research queries, run them against the full chomp files via RLM, write structured output to `chomp/bites/`. If chomp names or intent are missing, ask for them before proceeding.
+**`/chomp local`** — Same as above but dumps the current repo into `chomp/local.md`. Excludes `chomp/` and `.claude/` directories.
+
+**`/bite <chomp1,chomp2,...> <intent>`** — Formulate targeted research queries collaboratively with the user, run them against the full chomp files via RLM, write structured output to `chomp/bites/`. If chomp names or intent are missing, ask for them before proceeding.
 
 
 ## The metaphor
 
-The chomp is the meal. The bits are what you remember about the taste. The bite is when you decide what to cook next.
+The chomp is the meal. The bite is when you decide what to cook next.
